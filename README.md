@@ -1,23 +1,27 @@
 
-# Under Development
+# Meteor Celery
 
-This package is using development versions of both node-celery and node-amqp
-
-Use at your own peril.
+This package now uses `celery-shoot` - a fork of `node-celery`, and v0.2.0 of the node-amqp driver.
 
 
 # Installing
 
-This is a meteor package- however it's not currently posted on `atmosphere` due to it's experimental status.
+We're now in atmosphere!
 
-You can install by cloning this repository to your packages folder
+To install using meteorite:
+
+```sh
+cd /to/your/meteor/project
+mrt add celery
+```
+
+You can also install by cloning this repository to your packages folder
 
 ```sh
 cd /to/my/meteor/project
 git clone --depth 1 https://github.com/nathan-muir/meteor-celery.git packages/celery
 rm -rf packages/celery/.git
 ```
-
 
 # Usage
 
@@ -44,6 +48,7 @@ var Future = Npm.require('fibers/future');
 Meteor.methods({
   "performSomeHeavyTask": function(someArg){
     check(someArg, String);
+    this.unblock(); // if called with Meteor.apply('performSomeHeavyTask',[someArg],{wait:false}) this will prevent blocking of other method calls
     // CeleryClient#call returns a Future - call `.wait()` to obtain the result
     return CeleryClients.meteor.call('heavyTask', [1, 2, 3, someArg]).wait();
   },
@@ -94,8 +99,8 @@ Debugging
 ```sh
 # just debug meteor-celery
 METEOR_CELERY_DEBUG=1 meteor
-# debug meteor-celery, and node-celery
+# debug meteor-celery, and celery-shoot
 METEOR_CELERY_DEBUG=1 NODE_CELERY_DEBUG=1 meteor
-# debug meteor-celery, node-celery and node-amqp
+# debug meteor-celery, celery-shoot and node-amqp
 METEOR_CELERY_DEBUG=1 NODE_CELERY_DEBUG=1 NODE_DEBUG_AMQP=1 meteor
 ```

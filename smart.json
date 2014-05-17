@@ -1,0 +1,8 @@
+{
+  "name": "celery",
+  "description": "Celery (http://www.celeryproject.org/) client for meteor. Provides `futures` based interface to node package `celery-shoot`",
+  "homepage": "https://github.com/nathan-muir/meteor-celery",
+  "author": "Nathan Muir <ndmuir@gmail.com>",
+  "version": "0.1.0",
+  "git": "https://github.com/nathan-muir/meteor-celery.git"
+}
