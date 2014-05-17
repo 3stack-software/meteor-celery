@@ -1,0 +1,20 @@
+{
+  "dependencies": {
+    "celery-shoot": {
+      "version": "2.0.1",
+      "dependencies": {
+        "amqp": {
+          "version": "0.2.0",
+          "dependencies": {
+            "lodash": {
+              "version": "1.3.1"
+            }
+          }
+        },
+        "node-uuid": {
+          "version": "1.4.1"
+        }
+      }
+    }
+  }
+}
