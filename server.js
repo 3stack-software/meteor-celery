@@ -48,12 +48,16 @@ _.extend(CeleryClient.prototype, {
     this._client.on('connect', function CeleryClient_connect(){
       debug_client(_this._name, 'connected');
       _this._connected = true;
-      future.return(true);
+      if (!future.isResolved()){
+        future.return(true);
+      }
     });
 
     this._client.on('error', function CeleryClient_error(err){
       debug_client(_this._name, 'connection error', err);
-      future.throw(err);
+      if (!future.isResolved()){
+        future.throw(err);
+      }
     });
 
     this._client.on('end', function CeleryClient_end(){
