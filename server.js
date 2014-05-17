@@ -1,4 +1,4 @@
-var celery = Npm.require('node-celery');
+var celery = Npm.require('celery-shoot');
 var Future = Npm.require('fibers/future');
 
 /**
@@ -26,7 +26,7 @@ _.extend(CeleryClient.prototype, {
    * @param {String} [conf.BROKER_URL='amqp://']
    * @param {String} [conf.RESULT_BACKEND]
    * @param {String} [conf.DEFAULT_QUEUE='celery']
-   * @param {String} [conf.DEFAULT_EXCHANGE='']
+   * @param {String} [conf.DEFAULT_EXCHANGE='celery']
    * @param {String} [conf.DEFAULT_EXCHANGE_TYPE='direct']
    * @param {String} [conf.DEFAULT_ROUTING_KEY='celery']
    * @param {String} [conf.RESULT_EXCHANGE='celeryresults']
@@ -54,7 +54,7 @@ _.extend(CeleryClient.prototype, {
     });
 
     this._client.on('error', function CeleryClient_error(err){
-      debug_client(_this._name, 'connection error', err);
+      debug_client(_this._name, 'connection error', err, err.stack);
       if (!future.isResolved()){
         future.throw(err);
       }
