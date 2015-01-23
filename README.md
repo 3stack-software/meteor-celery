@@ -8,22 +8,27 @@ This package now uses `celery-shoot` - a fork of `node-celery`, and v0.2.0 of th
 
 We're now in atmosphere!
 
-To install using meteorite:
-
+To install, simply:
 ```sh
 cd /to/your/meteor/project
-mrt add celery
+meteor add 3stack:celery
 ```
 
 You can also install by cloning this repository to your packages folder
 
 ```sh
 cd /to/my/meteor/project
-git clone --depth 1 https://github.com/nathan-muir/meteor-celery.git packages/celery
+git clone --depth 1 https://github.com/3stack-software/meteor-celery.git packages/celery
 rm -rf packages/celery/.git
 ```
 
 # Usage
+
+If you'd like to connect to a single Celery server based on environment variables, check out
+
+https://github.com/3stack-software/meteor-celery-connect
+
+otherwise-
 
 Create a file to connect to your amqp server
 Example `server/celery_connect.js`:
