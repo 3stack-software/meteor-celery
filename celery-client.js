@@ -67,48 +67,88 @@ _.extend(CeleryClient.prototype, {
 
     return future.wait()
   },
-
+  createTask: function(name, options, trackStarted, ignoreResult){
+    return new CeleryTask(this, name, options, {
+      track_started: trackStarted,
+      ignore_result: ignoreResult
+    });
+  },
   /**
    * Calls a Celery Task, returning futures for the result.
    *
    * @param {String} method
-   * @param {Array} args
+   * @param {Array} [args]
    * @param {Boolean} [trackStarted=false] if true, will return two futures, [0] for task started, and [1] for the result.
+   * @param {Boolean} [ignoreResult=false] if true, will return null rather than tracking result
    * @returns {Future|Future[]}
    */
-  call: function(method, args, trackStarted){
-    var _this = this,
+  call: function(method, args, trackStarted, ignoreResult){
+    return this.createTask(method, {}, trackStarted, ignoreResult).apply(args);
+  },
+  /**
+   * Calls a Celery Task, returning futures for the result.
+   *
+   * @param {String} method
+   * @param {Array} [args]
+   * @param {Object} [kwargs]
+   * @param {Boolean} [trackStarted=false] if true, will return two futures, [0] for task started, and [1] for the result.
+   * @param {Boolean} [ignoreResult=false] if true, will return null rather than tracking result
+   * @returns {Future|Future[]}
+   */
+  apply: function(method, args, kwargs, trackStarted, ignoreResult){
+    return this.createTask(method, {}, trackStarted, ignoreResult).apply(args, kwargs);
+  }
+
+});
+
+function CeleryTask(client, name, options, additionalOptions){
+  var self = this;
+
+  self._client = client;
+  self._task = client._client.createTask(name, options, additionalOptions);
+}
+
+_.extend(CeleryTask.prototype, {
+  call: function(){
+    return this.apply(Array.prototype.slice(arguments, 0));
+  },
+  apply: function(args, kwargs, options){
+    var self = this,
         result = new Future(),
         started, celery_result;
 
     // provide a separate `Future` if `trackStarted` is provided
-    if (!!trackStarted){
+    if (!!self._task.additionalOptions.track_started && !self._task.additionalOptions.ignore_result){
       started = new Future();
     }
 
     // check that the client is currently connected.
-    if (!this._connected){
+    if (!self._client._connected){
       // causes both `started` & `result` to throw
       started && result.proxy(started);
 
-      result.throw(new Error(debug_call_stmt(_this._name, method, null, "Call failed. Celery isn't connected")));
+      result.throw(new Error(debug_call_stmt(self._client._name, self._task.name, null, "Call failed. Celery isn't connected")));
     } else {
       // call the method on the actual `client`
-      celery_result = this._client.call(method, args);
+      celery_result = self._task.call(args, kwargs, options);
 
-      debug_call(this._name, method, celery_result.taskid, 'called');
+      if (self._task.additionalOptions.ignore_result || celery_result == null){
+        return;
+      }
+
+      debug_call(self._client._name, self._task.name, celery_result.taskid, 'called');
 
       // register event handlers for failure
-      celery_result.on('failure', CeleryClient_call_onError);
-      celery_result.on('revoked', CeleryClient_call_onError);
-      celery_result.on('rejected', CeleryClient_call_onError);
-      celery_result.on('ignored', CeleryClient_call_onError);
+      celery_result.on('failure', CeleryTask_call_onError);
+      celery_result.on('revoked', CeleryTask_call_onError);
+      celery_result.on('rejected', CeleryTask_call_onError);
+      celery_result.on('ignored', CeleryTask_call_onError);
 
       // register event handler for `started`
-      started && celery_result.on('started', CeleryClient_call_onStarted);
+      started && celery_result.on('started', CeleryTask_call_onStarted);
 
       // register event handler for `success`
-      celery_result.on('success', CeleryClient_call_onSuccess);
+      celery_result.on('success', CeleryTask_call_onSuccess);
     }
 
     if (started){
@@ -117,34 +157,33 @@ _.extend(CeleryClient.prototype, {
       return result;
     }
 
-    function CeleryClient_call_onError(message){
-      debug_call(_this._name, method, celery_result.taskid, "Call failed [" + message.status + "]", message.traceback);
+    function CeleryTask_call_onError(message){
+      debug_call(self._client._name, self._task.name, celery_result.taskid, "Call failed [" + message.status + "]", message.traceback);
       // only propagate the error to `started` if it hasn't resolved.
       if (started && !started.isResolved()){
         result.proxy(started);
       }
 
-      result.throw(new Error(debug_call_stmt(_this._name, method, null, "Call failed [" + message.status + "]")));
+      result.throw(new Error(debug_call_stmt(self._client._name, self._task.name, null, "Call failed [" + message.status + "]")));
     }
 
-    function CeleryClient_call_onStarted(){
-      debug_call(_this._name, method, celery_result.taskid, "Started");
+    function CeleryTask_call_onStarted(){
+      debug_call(self._client._name, self._task.name, celery_result.taskid, "Started");
       if (started.isResolved()) return;
       started.return(true);
     }
 
-    function CeleryClient_call_onSuccess(message){
+    function CeleryTask_call_onSuccess(message){
       // if `started` wasn't resolved -
       if (started && !started.isResolved()){
-        debug_call(_this._name, method, celery_result.taskid, "Started (Warning: `started` was event forced)");
+        debug_call(self._client._name, self._task.name, celery_result.taskid, "Started (Warning: `started` was event forced)");
         started.return(true);
       }
-      debug_call(_this._name, method, celery_result.taskid, "Success", message.result);
+      debug_call(self._client._name, self._task.name, celery_result.taskid, "Success", message.result);
       result.return(message.result)
     }
   }
 });
-
 // debug code
 var debug = function(){};
 var debug_client = function(client_name, message){};

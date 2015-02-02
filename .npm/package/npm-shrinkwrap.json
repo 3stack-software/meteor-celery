@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "celery-shoot": {
-      "version": "2.0.1",
+      "version": "2.0.2",
       "dependencies": {
         "amqp": {
           "version": "0.2.0",
