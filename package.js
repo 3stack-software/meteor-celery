@@ -1,6 +1,6 @@
 Package.describe({
   name: '3stack:celery',
-  version: '1.0.1',
+  version: '1.0.2',
   summary: 'Connect Meteor to a python task server - a celery interface based on fibers/future',
   git: 'https://github.com/3stack-software/meteor-celery',
   documentation: 'README.md'

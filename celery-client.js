@@ -104,6 +104,7 @@ _.extend(CeleryClient.prototype, {
 function CeleryTask(client, name, options, additionalOptions){
   var self = this;
 
+  self.name = name;
   self._client = client;
   self._task = client._client.createTask(name, options, additionalOptions);
 }
