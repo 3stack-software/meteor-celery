@@ -1,7 +1,7 @@
 
 # Meteor Celery
 
-This package now uses `celery-shoot` - a fork of `node-celery`, and v0.2.0 of the node-amqp driver.
+This package now uses `celery-shoot` - a fork of `node-celery`, and v0.2.x of the node-amqp driver.
 
 
 # Installing
@@ -35,7 +35,7 @@ Example `server/celery_connect.js`:
 
 ```js
 Meteor.startup(function(){
-  // Creates a new client 'meteor` and stores it in `CeleryClients['meteor']`
+  // Creates a new client 'meteor`
   var client = new CeleryClient('meteor');
   client.connect({
     "BROKER_URL": "amqp://guest@localhost:5672//",
@@ -55,13 +55,13 @@ Meteor.methods({
     check(someArg, String);
     this.unblock(); // if called with Meteor.apply('performSomeHeavyTask',[someArg],{wait:false}) this will prevent blocking of other method calls
     // CeleryClient#call returns a Future - call `.wait()` to obtain the result
-    return CeleryClients.meteor.call('heavyTask', [1, 2, 3, someArg]).wait();
+    return client.call('heavyTask', [1, 2, 3, someArg]).wait();
   },
   "performLotsOfTasks": function(someArgs){
     check(someArg, [String]);
     var futures = _.map(someArgs, function(someArg){
       // call the methods simultaneously
-      return CeleryClients.meteor.call('heavyTask', [1, 2, 3, someArg]);
+      return client.call('heavyTask', [1, 2, 3, someArg]);
     });
 
     // wait for them as a group
@@ -81,7 +81,7 @@ Meteor.methods({
     // CeleryClient#call returns a Future - call `.wait()` to obtain the result
     Meteor.defer(function(){
       // provide `trackStarted=true` to `CeleryClient#call`, and you'll have two futures to check
-      var futures = CeleryClients.meteor.call('heavyTask', [1, 2, 3, someArg], true),
+      var futures = client.call('heavyTask', [1, 2, 3, someArg], true),
         started = futures[0],
         completed = futures[1],
         result;

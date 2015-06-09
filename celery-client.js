@@ -1,11 +1,6 @@
 var celery = Npm.require('celery-shoot');
 var Future = Npm.require('fibers/future');
 
-/**
- * A dictionary of CeleryClients
- * @type {Object}
- */
-CeleryClients = {};
 
 /**
  * Creates a new `CeleryClient` and stores it in `CeleryClients`
@@ -15,62 +10,63 @@ CeleryClients = {};
 CeleryClient = function (name){
   this._name = name;
   this._connected = false;
-  CeleryClients[this._name] = this;
+  this._error = false;
 };
 
 _.extend(CeleryClient.prototype, {
   /**
-   * Connects synchronously, proxies `conf` through to celery.createClient
+   * Connects asynchronously, proxies `conf` through to celery.createClient
    *
    * @param {Object} conf
    * @param {String} [conf.BROKER_URL='amqp://']
    * @param {String} [conf.RESULT_BACKEND]
    * @param {String} [conf.DEFAULT_QUEUE='celery']
-   * @param {String} [conf.DEFAULT_EXCHANGE='celery']
+   * @param {String} [conf.QUEUES=['celery']]
    * @param {String} [conf.DEFAULT_EXCHANGE_TYPE='direct']
-   * @param {String} [conf.DEFAULT_ROUTING_KEY='celery']
    * @param {String} [conf.RESULT_EXCHANGE='celeryresults']
    * @param {String} [conf.EVENT_EXCHANGE='celeryev']
    * @param {Boolean} [conf.SEND_TASK_SENT_EVENT=false]
    * @param {Number} [conf.TASK_RESULT_EXPIRES=86400000]
    * @param {Object} [conf.ROUTES={}]
    *
-   * @throws Error
-   *
    * @returns {Boolean}
    */
   connect: function(conf){
-    var _this = this,
-      future = new Future();
+    var self = this;
 
-    this._client = celery.createClient(conf);
+    if (self._client != null){
+      throw new Error("Already connected");
+    }
 
-    this._client.on('connect', function CeleryClient_connect(){
-      debug_client(_this._name, 'connected');
-      _this._connected = true;
-      if (!future.isResolved()){
-        future.return(true);
+    self._client = celery.createClient(conf);
+
+    self._client.on('connect', function CeleryClient_connect(){
+      debug_client(self._name, 'connected');
+      self._connected = true;
+      self._error = false;
+    });
+
+    self._client.on('error', function CeleryClient_error(err){
+      debug_client(self._name, 'connection error', err, err && err.stack);
+      self._error = true;
+    });
+
+    self._client.on('end', function CeleryClient_end(){
+      debug_client(self._name, 'connection closed');
+      self._connected = false;
+      if (!self._error) {
+        // dirty trick to force reconnect
+        // if you cleanly shut down rabbitMQ - it wont reconnect {as there wasn't an error}
+        debug_client(self._name, 'emitting error to force reconnection');
+        self._client.broker.emit('error')
       }
     });
-
-    this._client.on('error', function CeleryClient_error(err){
-      debug_client(_this._name, 'connection error', err, err.stack);
-      if (!future.isResolved()){
-        future.throw(err);
-      }
-    });
-
-    this._client.on('end', function CeleryClient_end(){
-      debug_client(_this._name, 'connection closed');
-      _this._connected = false;
-    });
-
-    return future.wait()
   },
+
   createTask: function(name, options, trackStarted, ignoreResult){
     return new CeleryTask(this, name, options, {
-      track_started: trackStarted,
-      ignore_result: ignoreResult
+      trackStarted: trackStarted,
+      ignoreResult: ignoreResult
     });
   },
   /**
@@ -113,13 +109,13 @@ _.extend(CeleryTask.prototype, {
   call: function(){
     return this.apply(Array.prototype.slice(arguments, 0));
   },
-  apply: function(args, kwargs, options){
+  apply: function(args, kwargs){
     var self = this,
         result = new Future(),
         started, celery_result;
 
     // provide a separate `Future` if `trackStarted` is provided
-    if (!!self._task.additionalOptions.track_started && !self._task.additionalOptions.ignore_result){
+    if (!!self._task.additionalOptions.trackStarted && !self._task.additionalOptions.ignoreResult){
       started = new Future();
     }
 
@@ -131,9 +127,9 @@ _.extend(CeleryTask.prototype, {
       result.throw(new Error(debug_call_stmt(self._client._name, self._task.name, null, "Call failed. Celery isn't connected")));
     } else {
       // call the method on the actual `client`
-      celery_result = self._task.call(args, kwargs, options);
+      celery_result = self._task.call(args, kwargs);
 
-      if (self._task.additionalOptions.ignore_result || celery_result == null){
+      if (self._task.additionalOptions.ignoreResult || celery_result == null){
         return;
       }
 
