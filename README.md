@@ -1,3 +1,12 @@
+# DEPRECATED
+
+Please use [`celery-connect`](https://github.com/3stack-software/meteor-celery-connect) / 
+[`celery-shoot`](https://github.com/3stack-software/celery-shoot) instead.
+
+They are complete re-writes with newer functionality.
+
+-----
+
 
 # Meteor Celery
 
